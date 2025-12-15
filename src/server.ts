@@ -6,8 +6,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-import taskRoutes from '../src/routes/task.routes';
-import authRoutes from '../src/routes/auth.routes';
+import taskRoutes from './routes/task.routes';
+import authRoutes from './routes/auth.routes';
 
 dotenv.config();
 const app = express();
