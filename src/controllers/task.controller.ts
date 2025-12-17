@@ -4,17 +4,35 @@ import { io } from '../server';
 
 export const create = async (req: Request, res: Response) => {
   try {
-    // console.log(' Creating Task Payload:', req.body);
+    const assignedTo =
+      req.body.assignedTo && req.body.assignedTo !== ''
+        ? req.body.assignedTo
+        : undefined;
 
-    const task = await taskService.createTask(req.body);
+    const taskData = {
+      ...req.body,
+      assignedTo: assignedTo,
+      creatorId: req.user?.userId,
+    };
+
+    const task = await taskService.createTask(taskData);
 
     console.log('💾 Saved to DB:', task);
 
     io.emit('taskCreated', task);
+
+    if (task.assignedTo) {
+      io.emit('notification', {
+        userId: task.assignedTo,
+        message: `You were assigned to "${task.title}"`,
+      });
+    }
     res.status(201).json(task);
-  } catch (error) {
-    console.error('Error creating task:', error);
-    res.status(500).json({ message: 'Error creating task' });
+  } catch (error: any) {
+    // console.error(' Error creating task:', error);
+    res
+      .status(500)
+      .json({ message: 'Error creating task', error: error.message });
   }
 };
 
@@ -43,6 +61,12 @@ export const update = async (req: Request, res: Response) => {
 
     io.emit('taskUpdated', updatedTask);
 
+    if (req.body.assignedTo) {
+      io.emit('notification', {
+        userId: req.body.assignedTo,
+        message: `You were assigned to "${updatedTask.title}"`,
+      });
+    }
     res.json(updatedTask);
   } catch (error) {
     res.status(500).json({ message: 'Error updating task' });

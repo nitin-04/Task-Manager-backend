@@ -6,12 +6,17 @@ export interface ITask extends Document {
   status: 'To Do' | 'In Progress' | 'Completed';
   priority: 'Low' | 'Medium' | 'High' | 'Urgent';
   dueDate?: Date;
+  creatorId: mongoose.Types.ObjectId;
+  assignedTo?: mongoose.Types.ObjectId;
   createdAt: Date;
 }
 
 const TaskSchema = new Schema(
   {
-    title: { type: String, required: true },
+    title: {
+      type: String,
+      required: true,
+    },
     status: {
       type: String,
       enum: ['To Do', 'In Progress', 'Completed'],
@@ -23,6 +28,18 @@ const TaskSchema = new Schema(
       default: 'Low',
     },
     dueDate: { type: Date },
+    description: { type: String },
+    creatorId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    assignedTo: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   { timestamps: true }
 );

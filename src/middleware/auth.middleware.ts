@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 declare global {
   namespace Express {
@@ -23,9 +25,10 @@ export const authenticateToken = (
     return res.status(401).json({ message: 'Access Token Required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+  jwt.verify(token, JWT_SECRET as string, (err: any, user: any) => {
     if (err) return res.status(403).json({ message: 'Invalid Token' });
 
     req.user = user;
+    next();
   });
 };

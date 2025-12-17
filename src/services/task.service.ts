@@ -15,7 +15,7 @@ export const getAllTasks = async (filters: any): Promise<ITask[]> => {
     query.priority = filters.priority;
   }
 
-  // console.log('🔍 MongoDB Query Object:', query);
+  // console.log(' MongoDB Query Object:', query);
 
   return await Task.find(query).sort({ createdAt: -1 });
 };
