@@ -1,32 +1,47 @@
 import { Request, Response } from 'express';
 import * as taskService from '../services/task.service';
 import { io } from '../server';
+import Notification from '../models/Notification';
 
 export const create = async (req: Request, res: Response) => {
   try {
-    const assignedTo =
-      req.body.assignedTo && req.body.assignedTo !== ''
-        ? req.body.assignedTo
-        : undefined;
+    //  Sanitize assignedTo
+    let assigneesList = req.body.assignedTo || [];
+    if (typeof assigneesList === 'string') {
+      assigneesList = [assigneesList];
+    }
+    assigneesList = assigneesList.filter((id: string) => id && id !== '');
 
     const taskData = {
       ...req.body,
-      assignedTo: assignedTo,
+      assignedTo: assigneesList.length > 0 ? assigneesList : undefined,
       creatorId: req.user?.userId,
     };
 
     const task = await taskService.createTask(taskData);
-
-    console.log('💾 Saved to DB:', task);
+    // console.log(' Saved to DB:', task);
 
     io.emit('taskCreated', task);
 
-    if (task.assignedTo) {
-      io.emit('notification', {
-        userId: task.assignedTo,
-        message: `You were assigned to "${task.title}"`,
-      });
+    const taskAssignees = task.assignedTo as any;
+
+    if (taskAssignees && taskAssignees.length > 0) {
+      // Use Promise.all to ensure we wait for DB saves without blocking response too long
+      await Promise.all(
+        taskAssignees.map(async (userId: any) => {
+          if (userId.toString() === req.user?.userId) {
+            return;
+          }
+
+          const message = `You were assigned to "${task.title}"`;
+
+          io.emit('notification', { userId, message });
+
+          await Notification.create({ userId, message });
+        })
+      );
     }
+
     res.status(201).json(task);
   } catch (error: any) {
     // console.error(' Error creating task:', error);
@@ -38,17 +53,13 @@ export const create = async (req: Request, res: Response) => {
 
 export const getAll = async (req: Request, res: Response) => {
   try {
-    // console.log(' API Request Query:', req.query);
-
     const filters = {
       status: req.query.status as string,
       priority: req.query.priority as string,
     };
-
     const tasks = await taskService.getAllTasks(filters);
     res.json(tasks);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: 'Error fetching tasks' });
   }
 };
@@ -61,12 +72,20 @@ export const update = async (req: Request, res: Response) => {
 
     io.emit('taskUpdated', updatedTask);
 
-    if (req.body.assignedTo) {
-      io.emit('notification', {
-        userId: req.body.assignedTo,
-        message: `You were assigned to "${updatedTask.title}"`,
-      });
+    // Notification Logic for Updates
+    if (req.body.assignedTo && Array.isArray(req.body.assignedTo)) {
+      await Promise.all(
+        req.body.assignedTo.map(async (userId: string) => {
+          if (userId.toString() === req.user?.userId) return;
+
+          const message = `You were assigned to "${updatedTask.title}"`;
+
+          io.emit('notification', { userId, message });
+          await Notification.create({ userId, message });
+        })
+      );
     }
+
     res.json(updatedTask);
   } catch (error) {
     res.status(500).json({ message: 'Error updating task' });
@@ -80,7 +99,6 @@ export const remove = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Task not found' });
 
     io.emit('taskDeleted', req.params.id);
-
     res.json({ message: 'Task deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting task' });

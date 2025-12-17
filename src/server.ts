@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import taskRoutes from './routes/task.routes';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
+import notificationRoutes from './routes/notification.routes';
 
 dotenv.config();
 const app = express();
@@ -26,6 +27,7 @@ app.use(express.json());
 app.use('/tasks', taskRoutes);
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
+app.use('/notifications', notificationRoutes);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
